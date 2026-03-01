@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WIKANG SENYAS – Filipino Sign Language Detection</title>
+  <meta name="description" content="Detect and learn Filipino Sign Language (FSL) phrases using AI-powered hand sign recognition.">
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══ HOME SCREEN ═══ -->
+  <div id="screen-home" class="screen active">
+    <div class="home-header">
+      <img src="/static/images/logo.png" alt="FSL Logo">
+      <div>
+        <div class="app-title">WIKANG SENYAS:</div>
+        <div class="app-subtitle">Filipino Sign Language Detection System</div>
+      </div>
+    </div>
+    <div class="scroll-content">
+      <h1 style="font-size:26px;font-weight:800;color:#1E293B;margin-bottom:16px;">Explore FSL</h1>
+
+      <div class="slider-container">
+        <div class="slider-viewport">
+          <div class="slider-track" id="slider-track">
+            <div class="slider-slide"><img src="/static/images/slider1.jpg" alt="Slide 1"><div class="slide-caption">Mabuhay! Welcome to FSL</div></div>
+            <div class="slider-slide"><img src="/static/images/slider2.jpg" alt="Slide 2"><div class="slide-caption">Detect Word Phrases</div></div>
+            <div class="slider-slide"><img src="/static/images/slider3.jpg" alt="Slide 3"><div class="slide-caption">FSL Dictionary</div></div>
+          </div>
+        </div>
+        <div class="slider-dots" id="slider-dots"></div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="action-btn red" onclick="navigate('detector')">
+          <div class="icon-circle"><span class="material-icons">qr_code_scanner</span></div>
+          <div class="btn-label">Detect</div>
+          <div class="btn-sub">Word Detection</div>
+        </button>
+        <button class="action-btn blue" onclick="navigate('dictionary')">
+          <div class="icon-circle"><span class="material-icons">menu_book</span></div>
+          <div class="btn-label">Dictionary</div>
+          <div class="btn-sub">Learn FSL</div>
+        </button>
+        <button class="action-btn yellow" onclick="navigate('manual')">
+          <div class="icon-circle"><span class="material-icons">info_outline</span></div>
+          <div class="btn-label">Manual</div>
+          <div class="btn-sub">How To Use</div>
+        </button>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item active" onclick="navigate('home')">
+        <div class="nav-icon"><span class="material-icons">home</span></div>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-item" onclick="navigate('settings')">
+        <div class="nav-icon"><span class="material-icons">settings</span></div>
+        <span class="nav-label">Settings</span>
+      </button>
+      <button class="nav-item" onclick="navigate('profile')">
+        <div class="nav-icon"><span class="material-icons">person</span></div>
+        <span class="nav-label">Profile</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ DETECTOR SCREEN ═══ -->
+  <div id="screen-detector" class="screen">
+    <div class="header-bar">
+      <button class="header-btn" onclick="navigate('home')"><span class="material-icons">arrow_back</span></button>
+      <span class="title">Word Detection</span>
+      <button class="header-btn" onclick="toggleCamera()"><span class="material-icons">refresh</span></button>
+    </div>
+
+    <div class="camera-box">
+      <video id="camera-video" autoplay playsinline muted></video>
+      <canvas id="capture-canvas" style="display:none;"></canvas>
+      <div class="camera-overlay">
+        <div class="guide-box"></div>
+      </div>
+      <div class="recording-indicator hidden" id="rec-indicator">
+        <div class="rec-dot" id="rec-dot"></div>
+        <span class="rec-text" id="rec-text"></span>
+      </div>
+      <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;">
+        <span style="color:rgba(255,255,255,0.7);font-size:12px;font-weight:500;">Position body here</span>
+      </div>
+    </div>
+
+    <div class="results-panel">
+      <div id="prediction-area"></div>
+      <div class="detected-header">
+        <span class="detected-title">DETECTED WORDS</span>
+        <span class="detected-count hidden" id="word-count">0</span>
+      </div>
+      <div class="words-area" id="words-area">
+        <div class="empty-words">
+          <span class="material-icons">back_hand</span>
+          <span>No words detected yet</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-bar" id="controls-bar">
+      <!-- Dynamically populated -->
+    </div>
+  </div>
+
+  <!-- ═══ DICTIONARY SCREEN ═══ -->
+  <div id="screen-dictionary" class="screen">
+    <div class="dict-header">
+      <div class="dict-header-top">
+        <button class="header-btn" onclick="navigate('home')"><span class="material-icons">arrow_back</span></button>
+        <span class="title" style="color:#fff;font-size:22px;font-weight:800;">FSL Dictionary</span>
+        <div style="width:40px;"></div>
+      </div>
+      <div class="search-bar">
+        <span class="material-icons">search</span>
+        <input type="text" id="dict-search" placeholder="Search phrases..." oninput="filterDictionary()">
+        <button class="search-clear hidden" id="search-clear" onclick="clearSearch()"><span class="material-icons">close</span></button>
+      </div>
+    </div>
+    <div class="results-count" id="results-count"></div>
+    <div class="dict-list" id="dict-list"></div>
+  </div>
+
+  <!-- ═══ SETTINGS SCREEN ═══ -->
+  <div id="screen-settings" class="screen">
+    <div class="header-bar">
+      <button class="header-btn" onclick="navigate('home')"><span class="material-icons">arrow_back</span></button>
+      <span class="title">Settings</span>
+      <div class="header-btn invisible"></div>
+    </div>
+    <div class="scroll-content" id="settings-content"></div>
+  </div>
+
+  <!-- ═══ PROFILE SCREEN ═══ -->
+  <div id="screen-profile" class="screen">
+    <div class="header-bar">
+      <button class="header-btn" onclick="navigate('home')"><span class="material-icons">arrow_back</span></button>
+      <span class="title">Profile</span>
+      <div class="header-btn invisible"></div>
+    </div>
+    <div class="scroll-content" id="profile-content"></div>
+  </div>
+
+  <!-- ═══ USER MANUAL SCREEN ═══ -->
+  <div id="screen-manual" class="screen">
+    <div class="header-bar">
+      <button class="header-btn" onclick="navigate('home')"><span class="material-icons">arrow_back</span></button>
+      <span class="title">User Manual</span>
+      <div class="header-btn invisible"></div>
+    </div>
+    <div class="scroll-content" id="manual-content"></div>
+  </div>
+
+  <!-- ═══ MODAL ═══ -->
+  <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)"></div>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

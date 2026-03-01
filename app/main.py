@@ -11,6 +11,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import base64
@@ -63,6 +65,9 @@ app = FastAPI(
     description="Filipino Sign Language detection using Grouped BiLSTM",
     version="1.0.0",
 )
+
+# ── Static files directory ───────────────────────────────────────────
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 # Initialize mediapipe holistic
 mp_holistic = mp.solutions.holistic
@@ -132,6 +137,12 @@ class NV21Frame(BaseModel):
 
 class FramesRequest(BaseModel):
     frames: List[NV21Frame]
+
+class WebFrame(BaseModel):
+    base64_data: str  # JPEG base64 from browser canvas
+
+class WebFramesRequest(BaseModel):
+    frames: List[WebFrame]
 
 class PredictionResponse(BaseModel):
     label: str
@@ -221,11 +232,68 @@ async def predict_frames(request: FramesRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/")
-async def root():
+@app.post("/predict_web_frames", response_model=PredictionResponse)
+async def predict_web_frames(request: WebFramesRequest):
+    """Accept JPEG base64 frames from browser webcam, extract landmarks, predict."""
+    try:
+        if len(request.frames) != SEQUENCE_LENGTH:
+            raise HTTPException(status_code=400, detail=f"Expected {SEQUENCE_LENGTH} frames")
+
+        all_landmarks = []
+        for frame_data in request.frames:
+            # Remove data URL prefix if present
+            b64 = frame_data.base64_data
+            if "," in b64:
+                b64 = b64.split(",", 1)[1]
+            raw_bytes = base64.b64decode(b64)
+            nparr = np.frombuffer(raw_bytes, np.uint8)
+            bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if bgr is None:
+                raise HTTPException(status_code=400, detail="Failed to decode frame image")
+            landmarks = extract_landmarks_from_frame(bgr)
+            all_landmarks.append(landmarks)
+
+        input_data = np.array(all_landmarks, dtype=np.float32).reshape(1, SEQUENCE_LENGTH, N_FEATURES)
+        output = model.predict(input_data, verbose=0)
+        probabilities = output[0]
+        pred_index = int(np.argmax(probabilities))
+        pred_label = LABELS[pred_index]
+        confidence = float(probabilities[pred_index])
+        all_preds = {LABELS[i]: round(float(probabilities[i]), 4) for i in range(len(LABELS))}
+
+        return PredictionResponse(
+            label=pred_label,
+            confidence=round(confidence, 4),
+            all_predictions=all_preds,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/info")
+async def api_info():
     return {
         "service": "FSL Prediction API",
         "version": "1.0.0",
         "labels": LABELS,
         "input_shape": f"[{SEQUENCE_LENGTH}, {N_FEATURES}]",
     }
+
+
+@app.get("/")
+async def root():
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {
+        "service": "FSL Prediction API",
+        "version": "1.0.0",
+        "labels": LABELS,
+        "input_shape": f"[{SEQUENCE_LENGTH}, {N_FEATURES}]",
+    }
+
+# ── Mount static files LAST (catch-all) ──────────────────────────────
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
